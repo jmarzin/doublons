@@ -14,12 +14,20 @@ object DoublonApp extends App with Utiles{
       }else {
         (p.id1, p.distance, p.statut)
       }}))
-  }).sortWith(_._2(0)._2 < _._2(0)._2)
+  }).sortWith(_._2(0)._2 < _._2(0)._2).sortWith(_._1.length < _._1.length)
   var liste = List[List[String]]()
   for(deb <- aTraiter){
-    liste = liste + Base.litDeb(deb._1)
-
+    var debiteur = new Debiteur()
+    debiteur.lit(deb._1)
+    liste = liste :+ debiteur.listeChampsDeb
+    for(deb2 <- deb._2) {
+      debiteur.lit(deb2._1)
+      liste = liste :+ debiteur.listeDonneesDeb
+    }
+    liste = aligne(liste)
+    liste = List()
   }
+
   println(vecteur.length)
 
 }
