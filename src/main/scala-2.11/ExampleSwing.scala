@@ -1,4 +1,5 @@
 import java.awt.Dimension
+import javax.swing.{JTable, ViewportLayout}
 
 import scala.swing.{BoxPanel, ButtonGroup, Label, MainFrame, Orientation, RadioButton, ScrollPane, SimpleSwingApplication, Table, TextArea}
 import swing.event._
@@ -15,7 +16,8 @@ object TableSelection extends SimpleSwingApplication {
 
   lazy val ui = new BoxPanel(Orientation.Vertical) {
     val table = new Table(model, Array("First Name", "Last Name", "Sport", "# of Years", "Vegetarian")) {
-      preferredViewportSize = new Dimension(500, 70)
+      preferredViewportSize = new Dimension(50, 70)
+      autoResizeMode = Table.AutoResizeMode.Off
     }
     //1.6:table.fillsViewportHeight = true
     listenTo(table.selection)
@@ -37,7 +39,7 @@ object TableSelection extends SimpleSwingApplication {
     val singleInterval = radio(intervalMutex, "Single Interval Selection")
     intervalMutex.select(multiInterval)
 
-    contents += new Label("Selection Options")
+    //contents += new Label("Selection Options")
     val elemMutex = new ButtonGroup
     val rowSelection = radio(elemMutex, "Row Selection")
     val columnSelection = radio(elemMutex, "Column Selection")
@@ -45,7 +47,7 @@ object TableSelection extends SimpleSwingApplication {
     elemMutex.select(rowSelection)
 
     val output = new TextArea(5, 40) { editable = false }
-    contents += new ScrollPane(output)
+    //contents += new ScrollPane(output)
 
     def outputSelection() {
       output.append("Lead: " + table.selection.rows.leadIndex + "," +
