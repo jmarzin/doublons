@@ -21,6 +21,6 @@ trait SqlTrait {
     return queue.toVector
   }
   def litBase(code: String): ResultSet = {
-    return statement.executeQuery("select * from debiteur")
+    return statement.executeQuery("select * from debiteur t1,adresse t2 where listeConsolidation = '"+code+"' and t1.refAdresse = t2.rowid;")
   }
 }
