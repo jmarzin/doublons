@@ -23,10 +23,6 @@ class Debiteur(var nomRs: String,
   }
 
   def listeDonneesDeb: List[String] = {
-    return List(nomRs,prenom,cpVille,numeroEtVoie,complementAdresse,listeConsolidation)
-  }
-
-  def listeChampsDeb: List[String] = {
-    return this.getClass.getDeclaredFields.map(_.getName).toList
+    List(nomRs,prenom,cpVille,numeroEtVoie,complementAdresse,listeConsolidation)
   }
 }
