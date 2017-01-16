@@ -1,7 +1,7 @@
 import java.awt.{Dimension, Point}
 import javax.swing.event.TableModelListener
-import javax.swing.table.{DefaultTableModel, TableModel}
-
+import javax.swing.table.{TableModel}
+import scala.collection.mutable
 import scala.swing.event.ButtonClicked
 import scala.swing.{BoxPanel, Button, Label, MainFrame, Orientation, ScrollPane, SimpleSwingApplication, Table}
 
@@ -65,6 +65,8 @@ object DoublonApp extends SimpleSwingApplication {
     }
 
     def traiteSaisie(): Unit = {
+      pileEcrans.push(encours)
+      var filtres: Vector[Quadruplet] = Vector()
       val colonneCode = table.peer.getColumn("listeConsolidation").getModelIndex
       val colonneStatut = table.peer.getColumn("Doublon").getModelIndex
       val nonTagges = encours.filter(_(colonneStatut) == false).map(_(colonneCode))
@@ -72,6 +74,7 @@ object DoublonApp extends SimpleSwingApplication {
       for (code2 <- nonTagges) {
         val filtre = vecteur.filter(p => (p.id1 == code1 && p.id2 == code2) || (p.id2 == code1 && p.id1 == code2))
         Base.miseAJour(filtre.head,"R")
+        filtres = filtres ++ filtre.map(q => new Quadruplet(q.id1,q.id2,q.distance,"R"))
         vecteur = vecteur.diff(filtre)
       }
       val tagges = encours.filter(_(colonneStatut) == true).map(_(colonneCode))
@@ -82,15 +85,19 @@ object DoublonApp extends SimpleSwingApplication {
               (p.id2 == tagges(i) && p.id1 == tagges(j)))
             Base.miseAJour(filtre.head,"A")
             vecteur = vecteur.diff(filtre)
+            filtres = filtres ++ filtre.map(q => new Quadruplet(q.id1,q.id2,q.distance,"A"))
           }
         }
       }
       listeATraiter = aTraiter(vecteur)
+      pileDoublons.push(filtres)
     }
 
     title = "Validation des propositions de doublons"
     location = new Point(0, 0)
     preferredSize = new Dimension(1000, 400)
+    var pileEcrans = new mutable.Stack[Array[Array[Any]]]
+    var pileDoublons = new mutable.Stack[Vector[Quadruplet]]
     val texte = new Label {
       text = "Sélectionnez le ou les doublons du premier débiteur."
     }
@@ -132,8 +139,13 @@ object DoublonApp extends SimpleSwingApplication {
       text = "Abandonner"
     }
 
+    val boutonPrecedent = new Button {
+      text = "Précédent"
+      visible = false
+    }
+
     val bas = new BoxPanel(Orientation.Horizontal) {
-      contents ++= List(boutonValider, boutonAbandonner)
+      contents ++= List(boutonPrecedent, boutonValider, boutonAbandonner)
     }
 
     var panneau = new ScrollPane(table)
@@ -148,6 +160,7 @@ object DoublonApp extends SimpleSwingApplication {
 
     listenTo(boutonAbandonner)
     listenTo(boutonValider)
+    listenTo(boutonPrecedent)
 
     reactions += {
       case ButtonClicked(`boutonValider`) =>
@@ -156,6 +169,16 @@ object DoublonApp extends SimpleSwingApplication {
         table.model = new monModele(encours, Array("Distance", "Doublon", "nomRs", "prenom", "cpVille",
           "numeroEtVoie", "complementAdresse", "listeConsolidation"))
         if (encours.nonEmpty) dimensionneColonnes()
+        boutonPrecedent.visible = true
+      case ButtonClicked(`boutonPrecedent`) =>
+        encours = pileEcrans.pop
+        vecteur = vecteur ++ pileDoublons.pop
+        if(pileEcrans.isEmpty) {
+          boutonPrecedent.visible = false
+        }
+        table.model = new monModele(encours, Array("Distance", "Doublon", "nomRs", "prenom", "cpVille",
+          "numeroEtVoie", "complementAdresse", "listeConsolidation"))
+        dimensionneColonnes()
       case ButtonClicked(`boutonAbandonner`) =>
           System.exit(0)
     }
