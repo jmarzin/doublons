@@ -1,9 +1,10 @@
 import java.awt.{Dimension, Point}
 import javax.swing.event.TableModelListener
-import javax.swing.table.{TableModel}
+import javax.swing.table.TableModel
+
 import scala.collection.mutable
 import scala.swing.event.ButtonClicked
-import scala.swing.{BoxPanel, Button, Label, MainFrame, Orientation, ScrollPane, SimpleSwingApplication, Table}
+import scala.swing.{BoxPanel, Button, Dialog, Label, MainFrame, Orientation, ScrollPane, SimpleSwingApplication, Table}
 
 /**
   * Created by jmarzin-cp on 03/01/2017.
@@ -11,6 +12,20 @@ import scala.swing.{BoxPanel, Button, Label, MainFrame, Orientation, ScrollPane,
 object DoublonApp extends SimpleSwingApplication {
 
   var vecteur = Base.litBase
+  var vecteurDesNonVues = vecteur.filter(_.statut.isEmpty)
+  var doublonsSeulement = false
+  if (vecteurDesNonVues.nonEmpty) {
+    val rep = Dialog.showOptions(
+      title = "Validation des doublons",
+      message = "Il y a des propositions de doublons qui n'ont pas été examinées.",
+      entries = Seq("Les examiner", "Réviser les choix déjà faits"),
+      initial = 0)
+    if(rep == Dialog.Result.Yes) {
+      vecteur = vecteurDesNonVues
+    } else if (rep != Dialog.Result.No) {
+      doublonsSeulement = true
+    }
+  }
 
   def aTraiter(vecteur : Vector[Quadruplet]): Vector[(String, Vector[(String,Int,String)])] = {
     (for (v <- vecteur.map(_.id1).distinct) yield {
@@ -23,7 +38,7 @@ object DoublonApp extends SimpleSwingApplication {
           (p.id1, p.distance, p.statut)
         }
       }))
-    }).sortWith(_._2(0)._2 < _._2(0)._2).sortWith(_._1.length < _._1.length)
+    }).sortWith(_._2(0)._2 < _._2(0)._2)//.sortWith(_._1.length < _._1.length)
   }
 
   var listeATraiter = aTraiter(vecteur) // chargement et tri des données
@@ -83,7 +98,11 @@ object DoublonApp extends SimpleSwingApplication {
           for(j <- i + 1 until tagges.length) {
             val filtre = vecteur.filter(p => (p.id1 == tagges(i) && p.id2 == tagges(j)) ||
               (p.id2 == tagges(i) && p.id1 == tagges(j)))
-            Base.miseAJour(filtre.head,"A")
+            if(filtre.nonEmpty) {
+              Base.miseAJour(filtre.head,"A")
+            } else {
+              println(tagges(i),tagges(j), " couple non trouvé")
+            }
             vecteur = vecteur.diff(filtre)
             filtres = filtres ++ filtre.map(q => new Quadruplet(q.id1,q.id2,q.distance,"A"))
           }
