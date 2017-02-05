@@ -12,33 +12,55 @@ import scala.swing.{BoxPanel, Button, Dialog, Label, MainFrame, Orientation, Scr
 object DoublonApp extends SimpleSwingApplication {
 
   var vecteur = Base.litBase
-  var vecteurDesNonVues = vecteur.filter(_.statut.isEmpty)
+  val vecteurDesNonVues = vecteur.filter(_.statut.isEmpty)
+  val vecteurDesDoublons = vecteur.filter(_.statut == "A")
   var doublonsSeulement = false
   if (vecteurDesNonVues.nonEmpty) {
     val rep = Dialog.showOptions(
       title = "Validation des doublons",
       message = "Il y a des propositions de doublons qui n'ont pas été examinées.",
-      entries = Seq("Les examiner", "Réviser les choix déjà faits"),
+      entries = Seq("Les examiner", "Réviser les choix déjà faits","doublons validés"),
       initial = 0)
     if(rep == Dialog.Result.Yes) {
       vecteur = vecteurDesNonVues
     } else if (rep != Dialog.Result.No) {
+      vecteur = vecteurDesDoublons
       doublonsSeulement = true
     }
   }
 
   def aTraiter(vecteur : Vector[Quadruplet]): Vector[(String, Vector[(String,Int,String)])] = {
-    (for (v <- vecteur.map(_.id1).distinct) yield {
-      val resfiltre = vecteur.filter(p => p.id1 == v || p.id2 == v)
-      val restrie = resfiltre.sortWith(_.distance < _.distance)
-      (v, restrie.map(p => {
-        if (p.id1 == v) {
-          (p.id2, p.distance, p.statut)
-        } else {
-          (p.id1, p.distance, p.statut)
+    if(doublonsSeulement) {
+      var resultat = new mutable.Queue[Set[String]]
+      for (v <- vecteur.distinct) {
+        var continue = true
+        var i = 0
+        while (continue && i < resultat.size) {
+          if(resultat(i).contains(v.id1) || resultat(i).contains(v.id2)) {
+            continue = false
+            resultat(i) += v.id1
+            resultat(i) += v.id2
+          }
+          i += 1
         }
-      }))
-    }).sortWith(_._2(0)._2 < _._2(0)._2)//.sortWith(_._1.length < _._1.length)
+        if(continue) {
+          resultat += Set(v.id1, v.id2)
+        }
+      }
+      (for(r <- resultat) yield (r.head, r.drop(1).map((_,0,"")).toVector)).toVector
+    } else {
+      (for (v <- vecteur.map(_.id1).distinct) yield {
+        val resfiltre = vecteur.filter(p => p.id1 == v || p.id2 == v)
+        val restrie = resfiltre.sortWith(_.distance < _.distance)
+        (v, restrie.map(p => {
+          if (p.id1 == v) {
+            (p.id2, p.distance, p.statut)
+          } else {
+            (p.id1, p.distance, p.statut)
+          }
+        }))
+      }).sortWith(_._2(0)._2 < _._2(0)._2) //.sortWith(_._1.length < _._1.length)
+    }
   }
 
   var listeATraiter = aTraiter(vecteur) // chargement et tri des données
@@ -46,17 +68,35 @@ object DoublonApp extends SimpleSwingApplication {
   def suivant : Array[Array[Any]] = {
     var model: Array[Array[Any]] = Array()
     if(listeATraiter.nonEmpty) {
-      val debEnCours = listeATraiter.head
-      listeATraiter = listeATraiter.drop(1)
-      val debiteur = new Debiteur()
-      debiteur.lit(debEnCours._1)
-      model = Array(("" :: true :: debiteur.listeDonneesDeb).toArray)
-      for (deb2 <- debEnCours._2) {
-        debiteur.lit(deb2._1)
-        if (deb2._3 == "A"){
-          model = model :+ (deb2._2.toString :: true :: debiteur.listeDonneesDeb).toArray[Any]
-        } else {
-          model = model :+ (deb2._2.toString :: false :: debiteur.listeDonneesDeb).toArray[Any]
+      if(doublonsSeulement) {
+        var debprec = new Debiteur()
+        for(deb <- listeATraiter) {
+          val debiteur = new Debiteur()
+          debiteur.lit(deb._1)
+          if(debiteur.listeConsolidation != debprec.listeConsolidation) {
+            model = model :+ ("" :: "" :: new Debiteur().listeDonneesDeb).toArray[Any]
+            debprec = debiteur
+            model = model :+ ("" :: "" :: debiteur.listeDonneesDeb).toArray[Any]
+          }
+          for(deb2 <- deb._2) {
+            val debiteur2 = new Debiteur()
+            debiteur2.lit(deb2._1)
+            model = model :+ ("" :: "" :: debiteur2.listeDonneesDeb).toArray[Any]
+          }
+        }
+      } else {
+        val debEnCours = listeATraiter.head
+        listeATraiter = listeATraiter.drop(1)
+        val debiteur = new Debiteur()
+        debiteur.lit(debEnCours._1)
+        model = Array(("" :: true :: debiteur.listeDonneesDeb).toArray)
+        for (deb2 <- debEnCours._2) {
+          debiteur.lit(deb2._1)
+          if (deb2._3 == "A") {
+            model = model :+ (deb2._2.toString :: true :: debiteur.listeDonneesDeb).toArray[Any]
+          } else {
+            model = model :+ (deb2._2.toString :: false :: debiteur.listeDonneesDeb).toArray[Any]
+          }
         }
       }
     }
@@ -118,11 +158,18 @@ object DoublonApp extends SimpleSwingApplication {
     var pileEcrans = new mutable.Stack[Array[Array[Any]]]
     var pileDoublons = new mutable.Stack[Vector[Quadruplet]]
     val texte = new Label {
-      text = "Sélectionnez le ou les doublons du premier débiteur."
+      if(!doublonsSeulement) {
+        text = "Sélectionnez le ou les doublons du premier débiteur."
+      } else {
+        text = ""
+      }
     }
     var encours = suivant
+
     class monModele(var data: Array[Array[Any]], noms: Array[Any]) extends TableModel {
-      override def isCellEditable(row: Int, column: Int): Boolean = column == 1 && row > 0
+      override def isCellEditable(row: Int, column: Int): Boolean = {
+        !doublonsSeulement && column == 1 && row > 0
+      }
       override def getRowCount = data.length
       override def getColumnClass(columnIndex: Int) = data(0)(columnIndex).getClass
       override def getColumnCount = data(0).length
@@ -136,11 +183,14 @@ object DoublonApp extends SimpleSwingApplication {
     }
     val table = new Table()
     table.model = new monModele(encours, Array("Distance", "Doublon", "nomRs", "prenom", "cpVille",
-      "numeroEtVoie", "complementAdresse", "listeConsolidation"))
+      "numeroEtVoie", "complementAdresse", "compteParDefaut", "listeConsolidation"))
     table.autoResizeMode = Table.AutoResizeMode.Off
     table.peer.setRowSelectionAllowed(false)
     val boutonValider = new Button {
       text = "Valider"
+      if(doublonsSeulement){
+        visible = false
+      }
     }
     if(encours.isEmpty) {
       boutonValider.visible=false
@@ -186,7 +236,7 @@ object DoublonApp extends SimpleSwingApplication {
         traiteSaisie()
         if(listeATraiter.nonEmpty) encours = suivant else encours=Array()
         table.model = new monModele(encours, Array("Distance", "Doublon", "nomRs", "prenom", "cpVille",
-          "numeroEtVoie", "complementAdresse", "listeConsolidation"))
+          "numeroEtVoie", "complementAdresse", "compteParDefaut", "listeConsolidation"))
         if (encours.nonEmpty) dimensionneColonnes()
         boutonPrecedent.visible = true
       case ButtonClicked(`boutonPrecedent`) =>
@@ -196,7 +246,7 @@ object DoublonApp extends SimpleSwingApplication {
           boutonPrecedent.visible = false
         }
         table.model = new monModele(encours, Array("Distance", "Doublon", "nomRs", "prenom", "cpVille",
-          "numeroEtVoie", "complementAdresse", "listeConsolidation"))
+          "numeroEtVoie", "complementAdresse", "compteParDefaut", "listeConsolidation"))
         dimensionneColonnes()
       case ButtonClicked(`boutonAbandonner`) =>
           System.exit(0)

@@ -7,7 +7,7 @@ import scala.collection.immutable.Queue
 object Base {
   Class.forName("org.sqlite.JDBC")
 
-  private val connection = DriverManager.getConnection("jdbc:sqlite:/Users/jacquesmarzin/ScalaProjects/doublons/restes.db")
+  private val connection = DriverManager.getConnection("jdbc:sqlite:C:/tiers/restes.db")
   private val statement = connection.createStatement
 
   def litBase : Vector[Quadruplet] = {

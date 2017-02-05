@@ -6,10 +6,11 @@ class Debiteur(var nomRs: String,
     var cpVille : String,
     var numeroEtVoie : String,
     var complementAdresse : String,
+    var compteParDefaut : String,
     var listeConsolidation : String) {
 
   def this() {
-    this("le nom", "le prénom", "la ville", "l'adresse", "le complément", "le code")
+    this("", "", "", "", "", "", "")
   }
 
   def lit(code: String) {
@@ -19,10 +20,11 @@ class Debiteur(var nomRs: String,
     cpVille = rs.getString("cpVille")
     numeroEtVoie = rs.getString("numeroEtVoie")
     complementAdresse = rs.getString("complementAdresse")
+    compteParDefaut = rs.getString("compteParDefaut")
     listeConsolidation = code
   }
 
   def listeDonneesDeb: List[String] = {
-    List(nomRs,prenom,cpVille,numeroEtVoie,complementAdresse,listeConsolidation)
+    List(nomRs,prenom,cpVille,numeroEtVoie,complementAdresse,compteParDefaut,listeConsolidation)
   }
 }
